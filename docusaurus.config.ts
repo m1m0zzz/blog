@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'm1m0zzzのブログ',
   // tagline: 'Dinosaurs are cool',
-  favicon: 'img/favicon.ico', // TODO
+  favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
   url: 'https://m1m0zzz.github.io',
@@ -34,11 +34,11 @@ const config: Config = {
     [
       'classic',
       {
-        docs: {
-          sidebarPath: './sidebars.ts',
-          routeBasePath: 'p',
+        docs: false,
+        blog: {
+          showReadingTime: true,
+          routeBasePath: '',
         },
-        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -50,17 +50,16 @@ const config: Config = {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
     navbar: {
-      title: '@m1m0zzz',
+      title: 'mimozのブログ',
       logo: {
         alt: 'My Site Logo',
-        src: 'img/logo.svg', // TODO
+        src: 'img/mimoz192.png',
       },
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          to: "/tags",
+          label: 'タグ一覧',
           position: 'left',
-          label: 'Blog Top',
         },
         {
           href: 'https://m1m0zzz.github.io/',
@@ -77,7 +76,7 @@ const config: Config = {
           items: [
             {
               label: 'Top',
-              to: '/p/top',
+              to: '/blog',
             },
           ],
         },
