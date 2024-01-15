@@ -1,0 +1,14 @@
+# こんにちは～👋
+
+## このブログについて
+
+Ableton LiveのTipsや、作ったアプリの紹介などをしていきたいと思います。  
+文章を書くことが割と苦手なので、拙い部分もあるかと思いますが、少しでもお役に立てれば、うれしいです。
+
+## リンク集
+
+- [ホームページ](https://m1m0zzz.github.io/)
+- [SoundCloud](https://soundcloud.com/mimozzz)
+- [X(Twitter)](https://twitter.com/m1m0zzz)
+- [YouTube](https://www.youtube.com/channel/UCgfte7zixiGJ6ZC6ttu3kfg)
+- [Instagram](https://www.instagram.com/m1m0zzz/)
