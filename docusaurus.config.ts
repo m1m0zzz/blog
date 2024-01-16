@@ -11,7 +11,7 @@ const config: Config = {
   url: 'https://m1m0zzz.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/blog/',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -27,7 +27,7 @@ const config: Config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'ja',
-    locales: ['ja'],
+    locales: ['ja', 'en'],
   },
 
   presets: [
@@ -37,7 +37,7 @@ const config: Config = {
         docs: false,
         blog: {
           showReadingTime: true,
-          routeBasePath: '',
+          // routeBasePath: '',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -57,7 +57,7 @@ const config: Config = {
       },
       items: [
         {
-          to: "/tags",
+          to: "/blog/tags",
           label: 'タグ一覧',
           position: 'left',
         },
