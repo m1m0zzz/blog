@@ -76,7 +76,7 @@ const config: Config = {
           items: [
             {
               label: 'Top',
-              to: '/blog',
+              to: '/post',
             },
           ],
         },
