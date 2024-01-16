@@ -8,7 +8,7 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://m1m0zzz.github.io',
+  url: 'https://mimoz-blog.vercel.app/',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
@@ -37,7 +37,7 @@ const config: Config = {
         docs: false,
         blog: {
           showReadingTime: true,
-          // routeBasePath: '',
+          routeBasePath: 'post',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -57,7 +57,7 @@ const config: Config = {
       },
       items: [
         {
-          to: "/blog/tags",
+          to: "/post/tags",
           label: 'タグ一覧',
           position: 'left',
         },
