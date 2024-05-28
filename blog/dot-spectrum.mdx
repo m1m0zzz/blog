@@ -1,0 +1,234 @@
+---
+title: ドット絵スペクトラムアナライザ「.Spectrum」の紹介
+date: 2024-05-29
+# authors: mimoz
+tags:
+- Web Audio API
+- PixelArt
+- Audio Visualize
+---
+
+import { TwitterTweetEmbed } from 'react-twitter-embed'
+
+## 作ったもの
+
+こんな感じの動画が作成できるサイトを作りました。
+
+<TwitterTweetEmbed
+  tweetId='1687695554720243712'
+/>
+
+- 画像と、音源をアップロードするだけで簡単
+- mp4を出力
+- オフライン対応
+
+ドット絵スペクトラムアナライザ「.Spectrum」  
+https://m1m0zzz.github.io/.spectrum/
+
+{/* truncate */}
+
+## 開発の経緯
+
+きっかけは、趣味で Web Audio API を色々試していて、
+自分の好きなドット絵と組み合わせたら面白いんじゃないか、という感じでした
+
+それから、何度もアップデートを重ね、mp4出力機能や、画像のドット化機能を追加しました。
+
+上の投稿のように、最初はデザイン性も皆無のサイトでしたが、  
+久しぶりに css を自分で書いたり、[患者長ひっく](https://twitter.com/hicchicc) さんの、ピクセルフォント [マルミーニャ](https://00ff.booth.pm/items/5435640) を採用したり、、、
+デザイン面も少し頑張りました。
+
+<TwitterTweetEmbed
+  tweetId='1723598841713471852'
+/>
+
+## 実装について
+
+:::info
+ここからは、少し専門的な内容になります。
+:::
+
+ソースコードは、GitHubで公開してます。  
+https://github.com/m1m0zzz/.spectrum
+
+技術スタックは
+
+- [Svelte](https://svelte.jp/)
+- [ffmpeg.wasm](https://ffmpegwasm.netlify.app/)
+- [Web Audio API](https://developer.mozilla.org/ja/docs/Web/API/Web_Audio_API)
+- [Canvas API](https://developer.mozilla.org/ja/docs/Web/API/Canvas_API)
+- [Service Worker API](https://developer.mozilla.org/ja/docs/Web/API/Service_Worker_API)
+- [GitHub Pages](https://docs.github.com/ja/pages/getting-started-with-github-pages/about-github-pages)
+
+
+### 大まかな処理の流れ
+
+1. ユーザーが音声と画像をアップロードする
+2. (ドット絵化 画像の縮小)
+3. Web Audio APIの [AnalyserNode](https://developer.mozilla.org/ja/docs/Web/API/AnalyserNode) を使用し、
+   アップロードされた音声を周波数分析する。(音声の再生に合わせてリアルタイムでFFTしてくれる)
+4. 周波数分析によって得た配列を見やすく表示するための処理
+5. 処理したデータを元にCanvas APIでドット絵を表示
+6. (動画をダウロード)
+
+括弧書きは、オプショナル
+
+### 1. アップロード処理
+
+まず最初に、ブラウザで音声を扱うための Web Audio API を初期化する必要があります。
+この初期化のタイミングですが、ユーザの操作があった後でなければいけません。
+これは、ブラウザの自動再生ポリシーによるものです。
+
+詳細は、[Chrome の自動再生ポリシー](https://developer.chrome.com/blog/autoplay?hl=ja#webaudio) を参照してください。
+
+今回は、音声アップロード用のボタンがクリックされた時に、初期化を行うようにします。
+
+<details>
+  <summary>コードを表示</summary>
+  <div>
+  ```tsx title="/src/routes/main/audioUploader.svelte"
+  // ... (省略)
+
+  const uploadSound = async () => {
+    if (!audioRef) return;
+    const result = await toBase64(files[0]);
+
+    audioRef.src = result;
+    audioLoaded = true;
+
+    if (!audioContext) {
+      // highlight-next-line
+      audioContext = new AudioContext();
+
+      // ... (省略)
+
+      dispatch('message', {
+        audioContext: audioContext,
+        // ... (省略)
+      })
+    }
+  }
+
+  // html
+
+  <section>
+    <h3>🎵 {$_('upload_audio')}</h3>
+    <input
+      type="file"
+      accept="audio/*"
+      aria-label="Upload audio"
+      bind:files
+      on:change={() => uploadSound()}
+    /><br />
+    <audio controls={audioLoaded} src="" controlslist="nodownload" bind:this={audioRef} />
+  </section>
+  ```
+  </div>
+
+  > https://github.com/m1m0zzz/.spectrum/blob/48b597a0f415c35791e62e0c178bab2337c8adbe/src/routes/main/audioUploader.svelte#L26
+
+</details>
+
+
+
+### 3. 周波数分析 (FFT)
+
+ユーザがアップロードした音声を表示するための下処理をしていきます🥩🧂  
+高速フーリエ変換(FFT)というアルゴリズムを使用します。
+
+高速フーリエ変換(Fast Fourier Transform)とは、めちゃくちゃ簡単に言うと、音声(波)を複数のサイン波に変換するものです。
+ブラウザでは、Web Audio APIの [AnalyserNode](https://developer.mozilla.org/ja/docs/Web/API/AnalyserNode) を使うことで、簡単に高速フーリエ変換を利用することができます。
+
+```tsx title="/src/routes/main/playerCanvas.svelte"
+const freqByteData = new Uint8Array(fftSize / 2);
+nodeAnalyser.getByteFrequencyData(freqByteData);
+```
+
+> https://github.com/m1m0zzz/.spectrum/blob/48b597a0f415c35791e62e0c178bab2337c8adbe/src/routes/main/playerCanvas.svelte#L48
+
+
+詳しい解説は下記のサイトを参照してください。
+
+[Visualizations with Web Audio API - Web API | MDN](https://developer.mozilla.org/ja/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API)  
+[Web Audio API 解説 - 12.アナライザーの使い方 | g200kg Music & Software](https://www.g200kg.com/jp/docs/webaudio/analyser.html)
+
+
+### 4. 対数表示+α
+
+AnalyzerNode で得たデータをそのまま(線形的に)表示しても良いのですが、対数的に表示した方が見やすいので実装！
+
+対数表示の実装
+
+```tsx title="/src/routes/main/playerCanvas.svelte"
+playerCtx.beginPath();
+
+for (let i = 0; i < freqByteData.length; i++) {
+  const freqSum = freqByteData[i] / 256;
+
+  if (spectrumType == 'log') {
+    playerCtx.rect(
+      (Math.log(i) / Math.log(freqByteData.length)) * w,
+      (1 - freqSum) * h,
+      1,
+      freqSum * h
+    );
+  // ...
+  }
+}
+
+playerCtx.fillStyle = 'lightskyblue';
+playerCtx.fill();
+```
+
+> https://github.com/m1m0zzz/.spectrum/blob/48b597a0f415c35791e62e0c178bab2337c8adbe/src/routes/main/playerCanvas.svelte#L103C4-L112C8
+
+{/*
+
+さて、ここからはドット絵で表示するための準備を始めます。
+
+(ここから話す内容は、もっと単純に出来るかもしれないのですが、凄く地道な実装をしています。)
+
+簡単に言うと、対数表示したデータを均等にスライスしていきます。
+
+(画像)
+
+詳しい説明
+
+また、計算量的に1フレームの間に処理が終わらないため、メモ化を行う。
+
+:::info
+1フレーム(FPS=30)の間に、およそ **3*10^6** 回処理ができる  
+1フレームは、0.03秒  
+1秒の間に 10^8 回処理できる[^1]
+:::
+
+対数表示したデータを均等にスライスする処理は、  
+画像サイズとFFTサイズに依存しているため、それらが更新された時にのみ処理するようにします。
+
+コード
+
+*/}
+
+
+## 周囲の反応
+
+[EP](https://tr.ee/FZ0RWdKxpo)を作ったメンバーが使ってくれました
+
+[Peri Sound さん](https://twitter.com/Peri_music)
+
+<TwitterTweetEmbed
+  tweetId='1723673759129985453'
+/>
+
+
+[いなが さん](https://twitter.com/inaga_P)
+
+<TwitterTweetEmbed
+  tweetId='1723685148468928613'
+/>
+
+{/* https://github.com/facebook/docusaurus/issues/9502 */}
+
+{/* [^1]: 計算量オーダーの求め方を総整理！ 〜 どこから log が出て来るか 〜 
+  https://qiita.com/drken/items/872ebc3a2b5caaa4a0d0 */}
+
