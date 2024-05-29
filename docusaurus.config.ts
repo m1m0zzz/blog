@@ -37,7 +37,7 @@ const config: Config = {
         docs: false,
         blog: {
           showReadingTime: true,
-          routeBasePath: 'post',
+          routeBasePath: '/',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -57,13 +57,13 @@ const config: Config = {
       },
       items: [
         {
-          to: "/post/tags",
+          to: "/tags",
           label: 'タグ一覧',
           position: 'left',
         },
         {
           href: 'https://m1m0zzz.github.io/',
-          label: 'Home Page',
+          label: 'ホームページ',
           position: 'right',
         },
       ],
@@ -76,7 +76,7 @@ const config: Config = {
           items: [
             {
               label: 'Top',
-              to: '/post',
+              to: '/',
             },
           ],
         },
