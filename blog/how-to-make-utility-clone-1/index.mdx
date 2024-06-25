@@ -1,0 +1,319 @@
+---
+title: Utility clone を支える技術 ~DSP編~
+date: 2024-06-26
+# authors: mimoz
+tags:
+- JUCE
+- VST
+- C++
+---
+
+import { TwitterTweetEmbed } from 'react-twitter-embed'
+import CaptionImage from '@site/src/components/CaptionImage'
+
+先日、Utility cloneというVSTプラグインをリリースしました。
+
+<TwitterTweetEmbed
+  tweetId="1774346653757329900"
+/>
+
+Utility cloneはAbleton LiveのUtilityという標準のエフェクトを模して作ったプラグインです。
+
+Utilityは、ゲインやパンなど、よく使用する処理がまとめられたエフェクトで、  
+自分のプロジェクトファイルには冗談抜きで全トラックに挿さっています。それくらい必須のエフェクトです。
+
+今回制作した Utility clone は、JUCEというフレームワークを使用していて、Windows, Mac, Linuxに対応しています。  
+また、コードはGitHubで公開しています。ダウンロードもこちらからできます。
+
+https://github.com/m1m0zzz/utility-clone
+
+## 処理順
+
+Liveのエフェクトは、基本的に処理の順番にUIが並んでいます。(そういう思想の元設計されている)
+処理順は以下の通りです。
+
+```
+[Phase Controle] -> [Channel Mode] -> [Width] ->
+[Mono] -> [Bass Mono] -> [Gain] -> [Pan] -> [DC]
+```
+
+<CaptionImage
+  src="https://github.com/m1m0zzz/utility-clone/assets/117814895/c0f1913b-e393-4dc6-935b-42fdf28d1640"
+  caption="Utility cloneのスクリーンショット"
+/>
+
+この記事では、信号が処理される順番に解説していきます。
+
+## 解説＆実装
+
+### フェーズコントロール
+
+フェーズコントロールでは、左右のトラックを個別に位相反転することができます。  
+実装は [こちらのjuceチュートリアル](https://docs.juce.com/master/tutorial_audio_processor_value_tree_state.html) を参考にしました。  
+
+```cpp
+auto phaseL = *isInvertPhaseL ? -1.0f : 1.0f;
+auto phaseR = *isInvertPhaseR ? -1.0f : 1.0f;
+buffer.applyGain(0, 0, numSamples, phaseL);
+buffer.applyGain(1, 0, numSamples, phaseR);
+```
+
+`isInvertPhaseL`, `isInvertPhaseR` は、パラメータの値のポインタで、  
+AudioBuffer.applyGain() のgainに -1を与えることで位相を反転します。  
+
+参照：  
+https://docs.juce.com/master/classAudioBuffer.html#a9ffc61d339e455d4bddc7cf055a63ee3 
+
+### チャンネルモード
+
+チャンネルモードは、Left, Right, Stereo, Swapから選択します。  
+Left は、左チャンネルが右チャンネルにコピーされ、Right はその逆です。  
+Stereo は変化なし、Swap では、左右のチャンネルが入れ替えられます。  
+これにより、Left, Right はモノラルに聞こえます。また、[Width], [Mid/Side], [Mono], [Bass Mono] の処理がスキップされます。  
+実装は下のようになります。  
+
+```jsx
+if (totalNumInputChannels == 2) {
+    if (channelModeList[*channelMode] == "Right") {
+        buffer.clear(0, 0, numSamples);
+        buffer.copyFrom(0, 0, buffer, 1, 0, buffer.getNumSamples());
+    } else if (channelModeList[*channelMode] == "Left") {
+        buffer.clear(1, 0, numSamples);
+        buffer.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
+    } else if (channelModeList[*channelMode] == "Swap") {
+        juce::AudioBuffer<float> newBuffer;
+        newBuffer.makeCopyOf(buffer);
+        buffer.copyFrom(0, 0, newBuffer, 1, 0, newBuffer.getNumSamples());
+        buffer.copyFrom(1, 0, newBuffer, 0, 0, newBuffer.getNumSamples());
+    }
+}
+```
+
+### Width, Mid/Side
+
+[Width] では、ステレオ幅をコントロールすることが出来ます。  
+[Width] は、右クリックでメニューを開くことで、[Mid/Side] モードと切り替えができるようになっています。  
+どちらも、ステレオ幅に影響する処理ですが、少し処理の内容が異なっています。  
+[Width] では、サイド成分の音量を 0%~400% に調節します。  
+[Mid/Side] では、100M (-100) の時はミッド成分、100S (100) の時は、サイド成分のみになります。  
+
+実装は、下のようになります。
+
+```cpp
+ if (totalNumInputChannels == 2 && !*isMono && !isMonoByChannelMode()) {
+    auto* leftChannel = buffer.getWritePointer(0);
+    auto* rightChannel = buffer.getWritePointer(1);
+    for (int i = 0; i < buffer.getNumSamples(); ++i) { // [1]
+      auto mid = (rightChannel[i] + leftChannel[i]);
+      auto side = (rightChannel[i] - leftChannel[i]);
+      if (stereoModeList[(int)*stereoMode] == "Width") {  // Width (0 to 400)
+        side *= width.getNextValue() / 100; // [2]
+      } else {                                                   // Mid/Side (-100 to 100)
+        float scale = 1.0f - abs(midSide.getNextValue() / 100);  // 1 to 0
+        if (midSide.getNextValue() > 0) { // [3]
+          mid *= scale;
+        } else if (midSide.getNextValue() < 0) {
+          side *= scale;
+        }
+      }
+      leftChannel[i] = (mid - side) / 2.0f; // [4]
+      rightChannel[i] = (mid + side) / 2.0f; // [4]
+    }
+  }
+```
+
+まず、信号をミッド成分、サイド成分に分けます。[1]  
+簡単な式で表すとこんな感じです。  
+
+$$
+\begin{alignat}{2}
+  M = R + L \\
+  S = R - L
+\end{alignat}
+$$
+
+次に、ミッド・サイド成分のボリュームを制御します。Width モードとMid/Side モードで処理の内容が違います。  
+Width モードの場合、[2]  
+width: 0~100  
+
+```cpp
+side *= width.getNextValue() / 100;
+```
+
+ミッド成分は、変化しません。  
+サイド成分は、0% のとき消え、400% の時には、4倍になります。  
+`getNextValue()` は、smoothing(平滑化)のための関数です。  
+Mid/Side モードの場合 [3]  
+midSide: -100~100  
+
+```cpp
+float scale = 1.0f - abs(midSide.getNextValue() / 100);  // 1 to 0
+if (midSide.getNextValue() > 0) {
+  mid *= scale;
+} else if (midSide.getNextValue() < 0) {
+  side *= scale;
+}
+```
+
+パラメータが0のときは変化せず、  
+正の時は、midが小さくなり、負の時は、sideが小さくなります。  
+最後に、ミッド・サイド成分から、左・右チャンネルに戻します。次の式で表せます。 [4]  
+
+$$
+\begin{alignat}{2}
+  L = (M - S) / 2 \\
+  R = (M + S) / 2
+\end{alignat}
+$$
+
+ここでなぜ`÷2` しているのかと疑問に思うかもしれませんが、実際に元の式に代入すると L, Rが出てきます。  
+$(3)$ の右辺に $(1),(2)$ を代入  
+
+$$
+\begin{split}
+  (右辺) &= \{(R + L) - (R - L)\} / 2 \\
+    &= (2L) / 2 \\
+    &= L = (左辺)
+\end{split}
+$$
+
+参照：  
+[Is there a "Stereo Width" processor/widget in the Juce DSP?](https://forum.juce.com/t/is-there-a-stereo-width-processor-widget-in-the-juce-dsp/46858)
+
+### Mono
+
+右チャンネルと左チャンネルの波形が完全に同じだと、ステレオ2chでも、モノラルに聞こえます。  
+実装は、下のようになります。
+
+```cpp
+if (*isMono && !isMonoByChannelMode()) {
+    buffer.addFrom(0, 0, buffer, 1, 0, buffer.getNumSamples());
+    buffer.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
+    buffer.applyGain(0.5f);
+}
+```
+
+参照：  
+https://forum.juce.com/t/how-do-i-sum-stereo-to-mono/37579/7
+
+### Bass Mono
+
+ローパス・ハイパスフィルタを使い、音声を低音と高音に分けて、低音成分だけをモノラルにします。  
+フィルタには、リンクウィッツ・ライリーフィルタ（英：Linkwitz-Riley filter）を使用しました。  
+ただし、この[Bass Mono]に関しては、実際にAbletonのUtilityで使われているものとは違うフィルタだと思われます。  
+
+実装：  
+```cpp
+if (((*isBassMono && !*isMono) || *isBassMonoListening) && !isMonoByChannelMode()) {
+    juce::AudioSampleBuffer lowOutput;
+    juce::AudioSampleBuffer highOutput;
+    lowOutput.makeCopyOf(buffer);
+    highOutput.makeCopyOf(buffer);
+    auto* lowOutputL = lowOutput.getWritePointer(0);
+    auto* lowOutputR = lowOutput.getWritePointer(1);
+    auto* highOutputL = highOutput.getWritePointer(0);
+    auto* highOutputR = highOutput.getWritePointer(1);
+    auto* inputL = buffer.getWritePointer(0);
+    auto* inputR = buffer.getWritePointer(1);
+    // process filter
+    for (int i = 0; i < numSamples; ++i) {
+      lrFilter.processSample(0, inputL[i], lowOutputL[i], highOutputL[i]);
+      lrFilter.processSample(1, inputR[i], lowOutputR[i], highOutputR[i]);
+    }
+    // make lowOutput mono
+    if (*isBassMono) {
+      lowOutput.addFrom(0, 0, lowOutput, 1, 0, numSamples);
+      lowOutput.copyFrom(1, 0, lowOutput, 0, 0, numSamples);
+      lowOutput.applyGain(0.5f);
+    }
+    buffer.clear();
+    for (int channel = 0; channel < totalNumInputChannels; channel++) {
+      buffer.addFrom(channel, 0, lowOutput, channel, 0, numSamples);
+      if (!*isBassMonoListening) {
+        buffer.addFrom(channel, 0, highOutput, channel, 0, numSamples);
+      }
+    }
+  }
+```
+
+参照：  
+
+https://docs.juce.com/master/classdsp_1_1LinkwitzRileyFilter.html
+https://en.wikipedia.org/wiki/Linkwitz–Riley_filter
+
+### Gain
+
+音量をコントロールします。
+今回は、基本的な信号処理の機能がまとめられた `juce::dsp` を使用します。
+`juce::dsp` モジュールを使用するための事前準備として以下のコードを使用します。
+
+```cpp
+juce::dsp::AudioBlock<float> audioBlock(buffer);
+juce::dsp::ProcessContextReplacing<float> context(audioBlock);
+for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+  buffer.clear(i, 0, buffer.getNumSamples());
+```
+
+まず、`buffer` を `AudioBlock` に `AudioBlock` を `ProcessContextReplacing` に渡して、contextを作ります。  
+`juce::dsp` に含まれるクラスでは、contextを通して、buffer（オーディオデータ）を扱います。  
+ゲインを変えるコードは以下のようになります。  
+
+```cpp
+// prepareToPlay
+gainDSP.prepare(spec);
+gainDSP.setRampDurationSeconds(0.005); 
+(省略)
+// processBlock
+gainDSP.setGainDecibels(*gain);
+gainDSP.process(context);
+```
+
+参照：
+
+https://docs.juce.com/master/namespacedsp.html
+https://docs.juce.com/master/classdsp_1_1Gain.html
+
+### Balance
+
+パンをコントロールします。  
+PanもGainと同様に、`juce::dsp` モジュールを使います。  
+Ableton Liveで実際に動作を比較した結果、PannerRule は`sin3dB` だと言うことが分かりました。  
+
+実装：  
+
+```cpp
+// prepareToPlay
+pannerDSP.prepare(spec);
+pannerDSP.setRule(juce::dsp::PannerRule::sin3dB);
+(省略)
+// processBlock
+pannerDSP.setPan(*pan / 50.0f);
+pannerDSP.process(context);
+```
+
+### DC
+
+DC offsetを調整します。DCオフセットとは、  
+> 信号波形の平均値が0からズレている事を表す。
+  https://www.g200kg.com/jp/docs/dic/dcoffset.html
+
+これを取り除くには、超低音のバイパスフィルタをかければ良い様です。  
+`juce::dsp` のIIRフィルタを 5Hzで掛けます。  
+
+実装：
+
+```cpp
+// prepareToPlay
+*dcFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 5.0f);
+dcFilter.prepare(spec);
+(省略)
+// processBlock
+if (*isDc) {
+  dcFilter.process(context);
+}
+```
+
+参照：  
+
+[ディーシーオフセット　DCオフセット:DC Offsetとは | 偏ったDTM用語辞典 - DTM / MIDI 用語の意味・解説 | g200kg Music & Software](https://www.g200kg.com/jp/docs/dic/dcoffset.html)  
+[How to hande a DC Offset at the audio output](https://forum.juce.com/t/how-to-hande-a-dc-offset-at-the-audio-output/43107/3)  
