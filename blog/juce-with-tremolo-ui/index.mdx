@@ -1,0 +1,22 @@
+---
+title: JUCEのUIを @tremolo-ui/react で作る
+date: 2024-12-2
+draft: true
+# authors: mimoz
+tags:
+- JUCE
+- React
+- vite
+---
+
+この記事は [JUCE Advent Calendar 2024](https://qiita.com/advent-calendar/2024/juce) 2日目の記事です。
+
+## JUCE8にてWebViewが搭載されました
+
+JUCEにWebViewが搭載されたことで、Reactなどのフレームワークが使用でき、簡単にUIの構築が可能になります。(もちろん、C++を使用する人からすれば、JavaScriptやその他のフレームワークを学習するコストはあると思いますが...)
+
+また、これまでは、数ピクセル修正するごとにコンパイルしていましたが、ホットリロードを使用すれば、コンパイル無しで修正が画面へと反映されます。これは、プラグイン開発においてのパラダイムシフトと言ってもいいんじゃないでしょうか！(過言？)
+
+詳しくは、こちらの公式ブログを参照してください。  
+[JUCE 8 Feature Overview: WebView UIs](https://juce.com/blog/juce-8-feature-overview-webview-uis/)
+
