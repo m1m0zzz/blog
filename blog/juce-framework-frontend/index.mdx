@@ -1,0 +1,110 @@
+---
+title: juce-framework-frontend-mirror の紹介
+date: 2024-12-2
+# authors: mimoz
+tags:
+- JUCE
+- WebView
+- TypeScript
+---
+
+import Flex from '@site/src/components/Flex'
+
+
+この記事は、[JUCE Advent Calendar 2024](https://qiita.com/advent-calendar/2024/juce) の2日目の記事です。
+
+<Flex
+  justifyContent={'space-around'}
+>
+
+[\< 1日目の記事](https://qiita.com/COx2/items/fa1aceb5013f92457469)
+
+[~3日目の記事 \>~](#)
+
+</Flex>
+
+
+## はじめに
+
+作曲や、開発をしている [mimoz](https://x.com/m1m0zzz) と申します。
+普段は、Web系のプログラムを書くことが多いですが、今年の4月頃からJUCEでVSTプラグインの制作を始めました。
+
+
+## JUCE8にてWebViewが本格的にサポートされました
+
+ライブラリの紹介の前に、WebViewの話を少ししようと思います。
+
+JUCEにWebViewが搭載されたことで、HTML・CSS・JavaScript、そしてReactなどのフレームワークが使用でき、簡単にUIの構築が可能になります。(もちろんJavaScriptやその他のフレームワークを学習するコストはあると思いますが...)
+
+また、これまでは、数ピクセルの変更を行う度にコンパイルしていましたが、ホットリロードを使用すれば、コンパイル無しで、変更が画面へと反映されます。
+
+他にも有利な点など、詳しく紹介されています。こちらの公式ブログを参照してください。  
+[JUCE 8 Feature Overview: WebView UIs](https://juce.com/blog/juce-8-feature-overview-webview-uis/)
+
+
+## juce-framework-frontend-mirror のモチベーション
+
+JUCE8では、開発者が、WebView(フロントエンド)のステートと、JUCE(バックエンド)の情報をやり取りするためのライブラリが用意されています。
+
+コードは、[ここ](https://github.com/juce-framework/JUCE/tree/master/modules/juce_gui_extra/native/javascript) にあります。
+
+
+
+
+開発していく上で改善したい部分があり、**juce-framework-frontend-mirror** という npm パッケージを公開したので紹介します。
+
+このプロジェクトは、以下の2つの目的で始めました。
+
+### `npm install` でファイルパスを指定するのが少し面倒
+
+- CMake と、Git Submodule を使用している場合は、
+
+  例）
+
+  ```bash
+  npm install ./lib/JUCE/modules/juce_gui_extra/native/javascript
+  ```
+  ---
+
+- Projucer を使用している場合は、
+
+  JUCEがインストールされているパスから指定することになります。
+
+  例）
+
+  ```bash
+  npm install C:/JUCE/juce-8.0.4/modules/juce_gui_extra/native/javascript
+  ```
+
+  (絶対パスで指定したい場合は、package.json を直接変更してください。)
+
+
+### Typescript の自動補完が欲しい
+
+自動補完がとても優秀なので、これはマストで欲しいです。
+
+[\@types (Definitely Typed)](https://definitelytyped.org/) に公開することも考えましたが、もし、更新があったときに、手元にコードがあった方が楽だろうと思い、`juce-framework-frontend-mirror` のパッケージに、`index.d.ts` も同梱されています。
+
+型の作成は、ほとんど `tsc` コマンドで出されたもので、一部 `any` だったところを修正したくらいです。
+
+
+## インストール
+
+```bash
+npm i juce-framework-frontend-mirror
+```
+
+ライセンスは、AGPL-3.0で、GitHubで公開しています。  
+Issue や Pull Requestもお待ちしております。
+
+https://github.com/m1m0zzz/juce-framework-frontend-mirror
+
+
+良ければ、GitHubのスター押してって下さい🙏
+
+## おわりに
+
+明日も実は私の記事で、今日紹介したライブラリも使いつつ、[\@tremolo-ui/react](https://github.com/m1m0zzz/tremolo-ui) というUIライブラリを使って、VSTプラグインのUIを作っていきます。
+
+明日の記事は、もっと厚みのある記事になりそう...  
+お楽しみに...!
