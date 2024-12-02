@@ -1,0 +1,85 @@
+:root {
+  -webkit-text-size-adjust: 100%;
+  word-break: normal;
+  tab-size: 4;
+
+  --color-gray0: #fff;  
+  --color-red70: #bd0505;
+  --font-size-headline-1: 32px;
+  --font-size-headline-2: 24px;
+  --font-size-subhead-1: 20px;
+  --font-size-subhead-2: 18px;
+  --font-size-body-1: 16px;
+  --font-size-body-2: 14px;
+  --font-size-body-3: 12px;
+  --line-height-headline: 1.4;
+  --line-height-subhead: 1.6;
+  --line-height-subhead-dense: 1.4;
+  --line-height-body: 1.8;  
+}
+
+
+.a {
+  -webkit-box-align: center;
+  align-items: center;
+  background-image: url("//cdn.qiita.com/assets/public/advent_calendar/back-advent_calendar_ribbon-ce0efac1d490b78816e848f879968544.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  border-radius: 8px;
+  color: var(--color-gray0);
+  display: inline-flex;
+  gap: 8px;
+  line-height: var(--line-height-body-dense);
+  margin-bottom: 16px;
+  max-width: 100%;
+  padding: 8px 12px;
+  width: auto;
+}
+
+.a:hover {
+  color: var(--color-gray0);
+  text-decoration: none;
+}
+
+.svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.p {
+  -webkit-box-align: center;
+  align-items: center;
+  display: flex;
+  font-size: var(--font-size-body-2);
+  font-weight: 600;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  
+  margin: 0;
+  unicode-bidi: isolate;
+}
+
+.p-span1 {
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.p-span2 {
+  white-space: nowrap;
+}
+
+.span {
+  background-color: var(--color-gray0);
+  border-radius: 4px;
+  color: var(--color-red70);
+  font-size: var(--font-size-body-3);
+  font-weight: 600;
+  flex-shrink: 0;
+  line-height: var(--line-height-body-dense);
+  padding: 2px 4px;
+}
