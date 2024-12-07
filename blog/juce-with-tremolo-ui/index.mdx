@@ -1,22 +1,440 @@
 ---
 title: JUCEのUIを @tremolo-ui/react で作る
-date: 2024-12-3
+date: 2024-12-7
 draft: true
 # authors: mimoz
 tags:
 - JUCE
+- WebView
 - React
-- vite
+- tremolo-ui
+- 2024
 ---
 
-この記事は [JUCE Advent Calendar 2024](https://qiita.com/advent-calendar/2024/juce) 2日目の記事です。
+import Flex from '@site/src/components/Flex'
+import AdventCalendar from '@site/src/components/AdventCalendar'
+import Video from '@site/src/components/Video'
 
-## JUCE8にてWebViewが搭載されました
+import captureVideo from './capture.mp4'
 
-JUCEにWebViewが搭載されたことで、Reactなどのフレームワークが使用でき、簡単にUIの構築が可能になります。(もちろん、C++を使用する人からすれば、JavaScriptやその他のフレームワークを学習するコストはあると思いますが...)
+<AdventCalendar day={3} />
 
-また、これまでは、数ピクセル修正するごとにコンパイルしていましたが、ホットリロードを使用すれば、コンパイル無しで修正が画面へと反映されます。これは、プラグイン開発においてのパラダイムシフトと言ってもいいんじゃないでしょうか！(過言？)
+この記事は、[JUCE Advent Calendar 2024](https://qiita.com/advent-calendar/2024/juce) の3日目の記事です。
 
-詳しくは、こちらの公式ブログを参照してください。  
-[JUCE 8 Feature Overview: WebView UIs](https://juce.com/blog/juce-8-feature-overview-webview-uis/)
+<Flex
+  justifyContent={'space-around'}
+>
 
+[\< 2日目の記事](./juce-framework-frontend-mirror)
+
+[4日目の記事 \>](https://atsushieno.hatenablog.com/entry/2024/12/04/002624)
+
+</Flex>
+
+## はじめに
+
+3日目の [mimoz](https://x.com/m1m0zzz) です。色々忙しく、かなり遅れてしまいました。すいません。
+
+この記事では、私が現在開発しているオーディオ・アプリケーション向けのUIライブラリ **tremolo-ui** を使い、JUCEのUIを作成していきます。
+
+実は、この記事の執筆に合わせて、ライブラリの配信の準備を進めていたのですが、JavaScriptバンドラー周りが上手く行かず、サンプルがだいぶ質素な見た目になってしまいました。
+
+
+## モチベーション
+
+まず、このライブラリを作り始めた経緯をお話しします。  
+
+プラグイン等のオーディオ・アプリケーションのUIは、既存の汎用的なUIライブラリではカバー出来ない部分がありました。代表的なもので言えば、Rotary Knob (回転ノブ)や、鍵盤などです。
+
+また、既存のライブラリによくある Slider などでも、対数的な表示 (skew) を実装するのが大変だったりしました。
+
+そこで現在開発しているのが、**tremolo-ui** です
+
+https://github.com/m1m0zzz/tremolo-ui
+
+tremolo-ui では以下のことを目標としています。
+
+- 使いやすさと拡張性  
+  → ヘッドレスUIライク・特殊なUIイベントのためのコンポーネント等
+- モバイルサポート  
+  → クロスプラットフォームであるJUCEと共に使用することを考慮し、モバイルでも単一のコードで動くこと
+
+
+{/* truncate */}
+
+## 画面を作っていく
+
+今回使用するフレームワーク/ライブラリのバージョンは、
+
+- JUCE: 8.0.4
+- @tremolo-ui/react: 0.0.3
+- juce-framework-frontend-mirror: 7.0.11
+- react: 18.3.1
+
+です。その他のライブラリのバージョンは、[/webview/package.json](https://github.com/m1m0zzz/tremolo-ui-juce-example/blob/main/webview/package.json) を参照してください。
+
+
+今回、記事やサンプルプログラムを作成するにあたり、[Kashiwade](https://x.com/Kashiwade_music) さんの [こちら](https://trap.jp/post/2307/) の記事を参考にしていています。ありがとうございます。  
+JUCEでWebViewを表示する方法など、詳しく書かれていますので、先にこちらを読んだ方が良いかもしれません。
+
+### 完成品
+
+<Video src={captureVideo} />
+
+
+コードはここにあります。
+
+https://github.com/m1m0zzz/tremolo-ui-juce-example
+
+
+JUCE側のコードは、これをクローンして使ってください。
+
+### インストール
+
+フロントエンドの開発ツールである [vite](https://ja.vite.dev/) を使い雛型を作ります。
+
+```bash npm2yarn
+npm init vite@latest
+```
+
+{/*
+TODO: `init` to `create` 
+https://github.com/nebrelbug/npm-to-yarn/issues/62
+*/}
+
+名前決めたり、プロジェクトの設定したりします。  
+サンプルでは、React + TypeScript + SWC で作成しました。
+
+```bash npm2yarn
+cd <project_name>
+npm i
+npm run start
+```
+
+取り敢えず、実行後に書いてあるコマンドに従い、デモページが表示されることを確認してください。
+
+### 下準備
+
+色々変更します
+
+<details>
+  <summary>webview/src/main.tsx</summary>
+
+```tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+if (import.meta.env.PROD) {
+  const html = document.getElementsByTagName('html')[0]
+  if (html) {
+    html.oncontextmenu = (() => false)
+  }
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+```
+</details>
+
+
+<details>
+  <summary>webview/src/index.css</summary>
+
+```css
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  height: 100%;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+h1 {
+  font-size: 1.5em;
+  line-height: 1.1;
+}
+
+#root {
+  height: 100%;
+}
+```
+</details>
+
+
+<details>
+  <summary>webview/src/App.tsx</summary>
+
+```tsx
+import { useState } from 'react'
+import { getToggleState } from 'juce-framework-frontend-mirror'
+
+import { JuceCombobox } from './components/JuceCombobox'
+import { JuceKnob } from './components/JuceKnob'
+import { JuceSlider } from './components/JuceSlider'
+import { JuceTextbox } from './components/JuceTextbox'
+import { JuceToggleSwitch } from './components/JuceToggleSwitch'
+
+import styles from './App.module.css'
+
+export default function App() {
+  const toggleState = getToggleState("bypass")
+  const [bypass, setBypass] = useState(toggleState.getValue());
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.power_button}>
+        <JuceToggleSwitch identifier="bypass" inverted={true} onChange={setBypass} />
+      </div>
+      <div
+        className={styles.cover}
+        data-bypass={bypass}
+      ></div>
+      <main className={styles.main}>
+        <h1>Pan</h1>
+        <JuceKnob identifier="panAngle" />
+        <JuceTextbox identifier="panAngle" digits={0} />
+        <JuceCombobox identifier="panRule" />
+        <h1>Gain</h1>
+        <JuceSlider identifier="gain" isVertical={true} />
+        <JuceTextbox identifier="gain" suffix="dB" />
+      </main>
+    </div>
+  )
+}
+```
+</details>
+
+<details>
+  <summary>webview/src/App.module.css</summary>
+
+```css
+.container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.power_button {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  translate: calc(-50%);
+  z-index: 1000;
+}
+
+.cover {
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 200;
+}
+
+.cover[data-bypass="true"] {
+  background-color: rgba(0, 0, 0,0.3);
+}
+
+.cover[data-bypass="false"] {
+  display: none;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  height: 100%;
+  padding-top: 4rem;
+  padding-right: 1rem;
+  padding-left: 1rem;
+  padding-bottom: 1rem;
+  text-align: center;
+}
+```
+</details>
+
+
+```tsx title="webview/src/index.css"
+if (import.meta.env.PROD) {
+  const html = document.getElementsByTagName('html')[0]
+  if (html) {
+    html.oncontextmenu = (() => false)
+  }
+}
+```
+
+👆 これで、プロダクションモードのときのみ、右クリックメニューを禁止しています。
+
+開発中は `console.log` でデバッグすると思うので、右クリックメニューから開発者ツールが出せた方がいいです。
+
+
+```css title="webview/src/index.css"
+body, html {
+  user-select: none;
+}
+```
+
+👆 そしてこれが意外と大事で、テキストなどのコンテンツを範囲選択出来なくすると、ブラウザっぽさが減ります。
+
+
+### JUCE コンポーネントの実装
+
+Juceのバックエンドと通信するための処理が必要で、またそれを再利用可能にするために、`webview/src/components` というディレクトリを作りそこに、JUCEのライブラリでラップしたコンポーネントを作成していきます。
+
+
+```tsx title="webview/src/components/JuceKnob.tsx"
+import { useEffect, useState } from "react";
+import { Knob } from "@tremolo-ui/react";
+import { getSliderState } from "juce-framework-frontend-mirror";
+
+interface Props {
+  identifier: string;
+}
+
+export function JuceKnob({
+  identifier
+}: Props) {
+  const sliderState = getSliderState(identifier);
+  const [value, setValue] = useState(sliderState.getNormalisedValue());
+
+  const handleChange = (newNormalisedValue: number) => {
+    console.log(newNormalisedValue)
+    sliderState.setNormalisedValue(newNormalisedValue);
+  };
+
+  useEffect(() => {
+    const updateWebViewValue = () => {
+      setValue(sliderState.getNormalisedValue());
+    };
+
+    const valueListenerId =
+      sliderState.valueChangedEvent.addListener(updateWebViewValue);
+
+    return () => {
+      sliderState.valueChangedEvent.removeListener(valueListenerId);
+    };
+  }, [sliderState]);
+
+  return (
+    <Knob
+      min={0}
+      max={1}
+      step={0.001}
+      value={value}
+      onChange={handleChange}
+      startValue={0.5}
+      enableWheel={['normalized', 0.1]}
+      style={{display: 'block', width: '100%'}}
+    />
+  );
+};
+```
+
+- `enableWheel` でマウスで値を変更する設定ができます。
+- デフォルトのノブの設定では、左下が回転の開始の位置ですが、`startValue` を設定するとそれを変更できます。
+
+
+```tsx title="webview/src/components/JuceSlider.tsx"
+import { useEffect, useState } from "react";
+import { Slider } from "@tremolo-ui/react";
+import { getSliderState } from "juce-framework-frontend-mirror";
+
+interface Props {
+  identifier: string;
+  isVertical?: boolean;
+}
+
+export function JuceSlider({
+  identifier,
+  isVertical = false,
+}: Props) {
+  const sliderState = getSliderState(identifier);
+  const [value, setValue] = useState<number>(sliderState.getNormalisedValue());
+
+  const handleChange = (newNormalisedValue: number) => {
+    sliderState.setNormalisedValue(newNormalisedValue);
+  };
+
+  useEffect(() => {
+    const updateWebViewValue = () => {
+      setValue(sliderState.getNormalisedValue());
+    };
+
+    const valueListenerId =
+      sliderState.valueChangedEvent.addListener(updateWebViewValue);
+
+    return () => {
+      sliderState.valueChangedEvent.removeListener(valueListenerId);
+    };
+  }, [sliderState]);
+
+  return (
+    <Slider
+      min={0}
+      max={1}
+      step={0.001}
+      value={value}
+      onChange={handleChange}
+      direction={isVertical ? 'up' : 'right'}
+      enableWheel={['normalized', 0.1]}
+      style={{display: 'block', margin: '10px auto'}}
+    />
+  );
+};
+```
+
+今回の実装は、かなりシンプルなので、あまり解説する所が無いですが、
+
+Sliderの中に `SliderTrack` や `SliderThumb` 要素を置くと、要素を自由にカスタマイズできます。
+
+参照: [Storybook](https://tremolo-ui-sb-react.vercel.app/?path=/story/react-components-slider--custom-image)
+
+---
+
+
+[JuceTextBox(NumberInput)](https://github.com/m1m0zzz/tremolo-ui-juce-example/blob/1a0e1f16e23e5c5df3f3f024ff937f316fbbf3f0/webview/src/components/JuceTextbox.tsx) と [JuceComboBox(Select)](https://github.com/m1m0zzz/tremolo-ui-juce-example/blob/1a0e1f16e23e5c5df3f3f024ff937f316fbbf3f0/webview/src/components/JuceCombobox.tsx) は、元記事の[Ant Design](https://ant.design/) で作られたコンポーネントを使っています。
+
+また、Bypassボタンが味気なく感じたので、アプリ全体のCSSと、ボタンのCSS等を変更して、電源ボタン的なデザインにしました。([コード](https://github.com/m1m0zzz/tremolo-ui-juce-example/tree/1a0e1f16e23e5c5df3f3f024ff937f316fbbf3f0/webview/src/components/JuceToggleSwitch))
+
+## GitHub/Storybookで公開しています
+
+今回のサンプルプログラム、tremolo-ui のコードは、GitHubで公開しています。  
+tremolo-ui については、バグレポート、フューチャーリクエストも受け付けています。
+
+- tremolo-ui のリポジトリ: [m1m0zzz/tremolo-ui](https://github.com/m1m0zzz/tremolo-ui)
+- サンプルプログラムのリポジトリ: [m1m0zzz/tremolo-ui-juce-example](https://github.com/m1m0zzz/tremolo-ui-juce-example)
+
+
+Storybook 上で、UI の確認もできます。
+
+https://tremolo-ui-sb-react.vercel.app/
+
+tremolo-ui が少しでもいいなと思ってくれたら、GitHub のスターをお願いします！
