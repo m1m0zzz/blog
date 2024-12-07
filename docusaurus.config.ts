@@ -3,6 +3,7 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import npm2yarn from '@docusaurus/remark-plugin-npm2yarn';
 
 const config: Config = {
   title: 'm1m0zzzのブログ',
@@ -40,7 +41,10 @@ const config: Config = {
         blog: {
           showReadingTime: true,
           routeBasePath: '/',
-          remarkPlugins: [remarkMath],
+          remarkPlugins: [
+            remarkMath,
+            [npm2yarn, {sync: true}],
+          ],
           rehypePlugins: [rehypeKatex],
         },
         theme: {
