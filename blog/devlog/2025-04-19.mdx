@@ -1,0 +1,18 @@
+---
+title: 作業ログ：4月19日
+date: 2025-04-19
+# authors: mimoz
+tags:
+- JUCE
+- 2025
+---
+
+MIDIトリガー メモプラグイン
+
+- `withNativeFunction` の第二引数 complete の型は `std::function<void (var)>`
+- > https://github.com/juce-framework/JUCE/blob/10a589619b452c261b2940767eb253171eb5a823/modules/juce_gui_extra/misc/juce_WebBrowserComponent.h#L93
+- var で使える型は使用可能
+- ただ、配列などは、XMLに変換することができないので、MemoryBlockには保存できない
+
+- Resource Provider による 値の更新
+  - lastHitMidiNote
