@@ -1,0 +1,47 @@
+---
+title: 作業ログ：10月22日
+date: 2025-10-22
+tags:
+- Web
+- 2025
+---
+
+- Storybook で ngrok を使うための設定
+
+```ts title=".storybook/main.ts"
+import { type InlineConfig, type UserConfig } from 'vite'
+
+import type { StorybookConfig } from '@storybook/react-vite'
+
+const config: StorybookConfig = {
+  // ...
+  framework: {
+    name: '@storybook/react-vite',
+    options: {},
+  },
+  async viteFinal(config) {
+    // Merge custom configuration into the default config
+    const { mergeConfig } = await import('vite')
+
+    return mergeConfig<InlineConfig, UserConfig>(config, {
+      server: {
+        allowedHosts: ['.ngrok-free.dev'],
+      },
+    })
+  },
+}
+
+export default config
+
+```
+
+storybook 起動して、
+
+```bash
+ngrok http 6006
+```
+
+ソース：
+- https://ja.vite.dev/config/server-options.html#server-allowedhosts
+- https://storybook.js.org/docs/builders/vite
+
