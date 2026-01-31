@@ -1,0 +1,52 @@
+---
+title: Web Audio API (+ 周辺) のリソースまとめ
+date: 2026-02-01
+tags:
+- Web
+- Web Audio API
+- 2026
+---
+
+**mdn**
+
+- [Web Audio API](https://developer.mozilla.org/ja/docs/Web/API/Web_Audio_API)
+- [Web MIDI API](https://developer.mozilla.org/ja/docs/Web/API/Web_MIDI_API)
+- [AudioWorklet](https://developer.mozilla.org/ja/docs/Web/API/AudioWorklet)
+
+**サンプル**
+
+- [g200kg - Web Audio API 解説](https://www.g200kg.com/jp/webaudio/waapi/index.html)
+  - Web Audio APIの解説とサンプル集
+  - 日本語で書かれていて分かりやすい
+- [Web Audio Samples](https://github.com/GoogleChromeLabs/web-audio-samples)
+  - Google Chrome Labsが出してるWeb Audio APIのサンプル集
+  - WASM + Audio Workletのサンプル
+    - https://github.com/GoogleChromeLabs/web-audio-samples/tree/main/src/audio-worklet/design-pattern
+
+
+**ライブラリ**
+
+- [Tone.js](https://tonejs.github.io/)
+  - [GitHub](https://github.com/Tonejs/Tone.js)
+  - [ドキュメント](https://tonejs.github.io/docs/)
+  - Web Audio APIをラップしたライブラリ
+  - 痒い所に手が届く感じで良い
+- [Howler.js](https://howlerjs.com/)
+  - [GitHub](https://github.com/goldfire/howler.js)
+  - シンプルなAPIでオーディオ再生を扱えるライブラリ
+- [elementary](https://www.elementary.audio/)
+  - [GitHub](https://github.com/elemaudio/elementary)
+  - JavaScriptでDSPを記述でき、VSTプラグインやWeb上で動作させることができるライブラリ
+  - Lunacy AudioのBEAMにも使われているらしい (https://www.elementary.audio/showcase)
+
+**UIライブラリ**
+
+- [tremolo-ui](https://tremolo-ui.vercel.app/)
+  - [GitHub](https://github.com/m1m0zzz/tremolo-ui)
+  - オーディオアプリケーション向けのUIコンポーネントライブラリ
+  - 私が作っている
+- [webaudio-controls](https://g200kg.github.io/webaudio-controls/docs/index.html)
+  - [GitHub](https://github.com/g200kg/webaudio-controls)
+  - [Web KnobMan](https://www.g200kg.com/en/webknobman/index.html) で作成したKnobやSwitchを利用できる
+- [react-piano](https://www.kevinqi.com/react-piano/)
+  - [GitHub](https://github.com/kevinsqi/react-piano)
