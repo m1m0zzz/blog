@@ -66,6 +66,12 @@ const config: Config = {
       crossorigin: 'anonymous',
     },
   ],
+  scripts: [
+    {
+      src: 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1233538589702396',
+      async: true,
+    },
+  ],
 
   themeConfig: {
     // Replace with your project's social card
