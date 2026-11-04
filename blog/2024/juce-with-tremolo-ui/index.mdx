@@ -25,6 +25,10 @@ import captureVideo from './capture.mp4'
 
 </Flex>
 
+:::info
+2026年11月に、コードを @tremolo-ui/react 0.9.0 に合わせて書き直しました。0.9.0 ではコンポーネントが部品を組み合わせる書き方に変わり、CSS も同梱されなくなっています。動画は公開時のものです。
+:::
+
 ## はじめに
 
 3日目の [mimoz](https://x.com/m1m0zzz) です。色々忙しく、かなり遅れてしまいました。すいません。
@@ -61,7 +65,7 @@ tremolo-ui では以下のことを目標としています。
 今回使用するフレームワーク/ライブラリのバージョンは、
 
 - JUCE: 8.0.4
-- @tremolo-ui/react: 0.0.3
+- @tremolo-ui/react: 0.9.0（公開時は 0.0.3）
 - juce-framework-frontend-mirror: 7.0.11
 - react: 18.3.1
 
@@ -180,6 +184,10 @@ h1 {
 #root {
   height: 100%;
 }
+
+#input-number {
+  text-align: center;
+}
 ```
 </details>
 
@@ -199,7 +207,7 @@ import { JuceToggleSwitch } from './components/JuceToggleSwitch'
 
 import styles from './App.module.css'
 
-export default function App() {
+function App() {
   const toggleState = getToggleState("bypass")
   const [bypass, setBypass] = useState(toggleState.getValue());
 
@@ -217,13 +225,15 @@ export default function App() {
         <JuceKnob identifier="panAngle" />
         <JuceTextbox identifier="panAngle" digits={0} />
         <JuceCombobox identifier="panRule" />
-        <h1>Gain</h1>
-        <JuceSlider identifier="gain" isVertical={true} />
+        <h1 style={{ marginTop: '0.5rem' }}>Gain</h1>
+        <JuceSlider identifier="gain" />
         <JuceTextbox identifier="gain" suffix="dB" />
       </main>
     </div>
   )
 }
+
+export default App
 ```
 </details>
 
@@ -235,6 +245,8 @@ export default function App() {
   width: 100%;
   height: 100%;
   position: relative;
+  display: flex;
+  justify-content: center;
 }
 
 .power_button {
@@ -264,8 +276,11 @@ export default function App() {
 .main {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.6rem;
   height: 100%;
+  max-width: 180px;
   padding-top: 4rem;
   padding-right: 1rem;
   padding-left: 1rem;
@@ -276,7 +291,7 @@ export default function App() {
 </details>
 
 
-```tsx title="webview/src/index.css"
+```tsx title="webview/src/main.tsx"
 if (import.meta.env.PROD) {
   const html = document.getElementsByTagName('html')[0]
   if (html) {
@@ -299,6 +314,12 @@ body, html {
 👆 そしてこれが意外と大事で、テキストなどのコンテンツを範囲選択出来なくすると、ブラウザっぽさが減ります。
 
 
+### テーマの CSS を用意する
+
+tremolo-ui は CSS を同梱していません。コンポーネントは構造と操作だけを受け持ち、見た目は利用側が `className` で与えます。
+
+ドキュメントの [Styling](https://tremolo-ui.mimoz.dev/docs/tutorials/styling/) のページに、デモで使っているテーマが CSS Modules で公開されているので、`Knob.module.css` と `Slider.module.css` を `webview/src/theme` にコピーして使います。
+
 ### JUCE コンポーネントの実装
 
 Juceのバックエンドと通信するための処理が必要で、またそれを再利用可能にするために、`webview/src/components` というディレクトリを作りそこに、JUCEのライブラリでラップしたコンポーネントを作成していきます。
@@ -308,6 +329,8 @@ Juceのバックエンドと通信するための処理が必要で、またそ�
 import { useEffect, useState } from "react";
 import { Knob } from "@tremolo-ui/react";
 import { getSliderState } from "juce-framework-frontend-mirror";
+
+import knobTheme from "../theme/Knob.module.css";
 
 interface Props {
   identifier: string;
@@ -338,22 +361,34 @@ export function JuceKnob({
   }, [sliderState]);
 
   return (
-    <Knob
+    <Knob.Root
+      className={knobTheme.root}
+      aria-label={identifier}
       min={0}
       max={1}
       step={0.001}
       value={value}
       onChange={handleChange}
       startValue={0.5}
-      enableWheel={['normalized', 0.1]}
-      style={{display: 'block', width: '100%'}}
-    />
+      wheel={['normalized', 0.1]}
+      keyboard={['normalized', 0.01]}
+    >
+      <Knob.SVGRoot>
+        <Knob.ActiveLine className={knobTheme.activeLine} />
+        <Knob.InactiveLine className={knobTheme.inactiveLine} />
+        <Knob.Thumb
+          className={knobTheme.thumb}
+          classes={{ line: knobTheme.thumbLine }}
+        />
+      </Knob.SVGRoot>
+    </Knob.Root>
   );
 };
 ```
 
-- `enableWheel` でマウスで値を変更する設定ができます。
-- デフォルトのノブの設定では、左下が回転の開始の位置ですが、`startValue` を設定するとそれを変更できます。
+- `Knob.Root` の中に、描画する部品（`Knob.SVGRoot`・`Knob.ActiveLine`・`Knob.InactiveLine`・`Knob.Thumb`）を並べます。並べたものだけが描画されます。
+- JUCE とは 0〜1 の正規化した値でやりとりするので、`wheel`（マウスホイール）と `keyboard`（矢印キー）の変化量は `'normalized'` で指定しています。
+- デフォルトでは左下が回転の開始位置ですが、`startValue` で変えられます。パンのように中央から左右に振るノブでは `0.5` にします。ダブルクリックでもこの値に戻ります。
 
 
 ```tsx title="webview/src/components/JuceSlider.tsx"
@@ -361,14 +396,16 @@ import { useEffect, useState } from "react";
 import { Slider } from "@tremolo-ui/react";
 import { getSliderState } from "juce-framework-frontend-mirror";
 
+import sliderTheme from "../theme/Slider.module.css";
+
 interface Props {
   identifier: string;
-  isVertical?: boolean;
+  vertical?: boolean;
 }
 
 export function JuceSlider({
   identifier,
-  isVertical = false,
+  vertical = true,
 }: Props) {
   const sliderState = getSliderState(identifier);
   const [value, setValue] = useState<number>(sliderState.getNormalisedValue());
@@ -391,25 +428,35 @@ export function JuceSlider({
   }, [sliderState]);
 
   return (
-    <Slider
+    <Slider.Root
+      className={sliderTheme.root}
       min={0}
       max={1}
       step={0.001}
       value={value}
       onChange={handleChange}
-      direction={isVertical ? 'up' : 'right'}
-      enableWheel={['normalized', 0.1]}
-      style={{display: 'block', margin: '10px auto'}}
-    />
+      orientation={vertical ? 'vertical' : 'horizontal'}
+      wheel={['normalized', 0.1]}
+      keyboard={['normalized', 0.01]}
+      style={{ flex: '1 1 auto' }}
+    >
+      <Slider.Track
+        className={sliderTheme.track}
+        style={vertical ? { '--length': '100%' } : undefined}
+      >
+        <Slider.Thumb className={sliderTheme.thumb} aria-label={identifier} />
+      </Slider.Track>
+    </Slider.Root>
   );
 };
 ```
 
-今回の実装は、かなりシンプルなので、あまり解説する所が無いですが、
+Slider も同じく、`Slider.Root` の中に `Slider.Track` と `Slider.Thumb` を置いて組み立てます。
 
-Sliderの中に `SliderTrack` や `SliderThumb` 要素を置くと、要素を自由にカスタマイズできます。
+- `orientation` で縦向きにできます。縦向きのときは、トラックの長さ（`--length`）を `100%` にして、空いている高さいっぱいに伸ばしています。
+- 部品ごとに `className` や `style` を渡せるので、トラックやつまみの見た目は自由に変えられます。
 
-参照: [Storybook](https://tremolo-ui-sb-react.vercel.app/?path=/story/react-components-slider--custom-image)
+参照: [Slider | tremolo-ui](https://tremolo-ui.mimoz.dev/docs/components/Slider/)
 
 ---
 
@@ -418,7 +465,7 @@ Sliderの中に `SliderTrack` や `SliderThumb` 要素を置くと、要素を�
 
 また、Bypassボタンが味気なく感じたので、アプリ全体のCSSと、ボタンのCSS等を変更して、電源ボタン的なデザインにしました。([コード](https://github.com/m1m0zzz/tremolo-ui-juce-example/tree/1a0e1f16e23e5c5df3f3f024ff937f316fbbf3f0/webview/src/components/JuceToggleSwitch))
 
-## GitHub/Storybookで公開しています
+## GitHub/ドキュメントで公開しています
 
 今回のサンプルプログラム、tremolo-ui のコードは、GitHubで公開しています。  
 tremolo-ui については、バグレポート、フューチャーリクエストも受け付けています。
@@ -427,8 +474,9 @@ tremolo-ui については、バグレポート、フューチャーリクエス
 - サンプルプログラムのリポジトリ: [m1m0zzz/tremolo-ui-juce-example](https://github.com/m1m0zzz/tremolo-ui-juce-example)
 
 
-Storybook 上で、UI の確認もできます。
+ドキュメントと Storybook で、UI の確認もできます。
 
-https://tremolo-ui-sb-react.vercel.app/
+- ドキュメント: https://tremolo-ui.mimoz.dev/
+- Storybook: https://tremolo-ui.mimoz.dev/i/storybook-react/
 
 tremolo-ui が少しでもいいなと思ってくれたら、GitHub のスターをお願いします！
