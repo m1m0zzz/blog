@@ -46,6 +46,11 @@
     ]
   },
   "engines": {
-    "node": ">=24.0"
+    "node": ">=24.15.0",
+    "npm": ">=11.16.0"
+  },
+  "allowScripts": {
+    "core-js": false,
+    "fsevents": false
   }
 }
